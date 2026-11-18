@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Language Learning App</title>
+
+<style>
+body{
+font-family: Arial, sans-serif;
+background: linear-gradient(135deg,#4facfe,#00f2fe);
+display:flex;
+justify-content:center;
+padding:30px;
+}
+.container{
+background:white;
+width:700px;
+padding:25px;
+border-radius:15px;
+box-shadow:0 10px 25px rgba(0,0,0,0.2);
+}
+h1{ text-align:center; color:#333; }
+select{
+padding:10px;
+border:1px solid #ccc;
+border-radius:6px;
+width:100%;
+margin:6px 0;
+}
+button{
+background:#007bff;
+color:white;
+border:none;
+padding:12px;
+margin-top:10px;
+border-radius:6px;
+cursor:pointer;
+}
+button:hover{ background:#0056b3; }
+.tabs button{ width:24%; margin-top:5px; background:#6c757d; }
+.tabs button.active{ background:#007bff; }
+.tab{ display:none; }
+.card{
+background:#f8f9fa;
+padding:15px;
+margin-top:15px;
+border-radius:10px;
+}
+.flash{ text-align:center; min-height:130px; }
+.big{ font-size:30px; font-weight:bold; color:#333; }
+.tr{ font-size:22px; color:#007bff; margin-top:10px; }
+.pr{ font-style:italic; color:#666; margin-top:6px; }
+.opt{ display:block; width:100%; margin-top:8px; background:white; color:#333; border:1px solid #ccc; text-align:left; }
+.opt:hover{ background:#e9ecef; }
+.progress{
+background:#ddd;
+height:25px;
+border-radius:20px;
+overflow:hidden;
+margin-top:8px;
+}
+.progress-bar{
+height:100%;
+width:0%;
+background:linear-gradient(to right,#28a745,#00c853);
+text-align:center;
+color:white;
+line-height:25px;
+font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>🌍 Language Learning App</h1>
+
+<label><b>I want to learn:</b></label>
+<select id="language" onchange="refreshAll()"></select>
+
+<div class="tabs">
+<button id="b_daily" onclick="showTab('daily')">Daily</button>
+<button id="b_flash" onclick="showTab('flash')">Flashcards</button>
+<button id="b_quiz" onclick="showTab('quiz')">Quiz</button>
+<button id="b_prog" onclick="showTab('prog')">Progress</button>
+</div>
+
+<!-- DAILY LESSON -->
+<div class="tab" id="daily">
+<div class="card">
+<h3>📅 Today's Lesson</h3>
+<p id="dailyDate"></p>
+<div id="dailyList"></div>
+</div>
+</div>
+
+<!-- FLASHCARDS -->
+<div class="tab" id="flash">
+<div class="card">
+<h3>🃏 Flashcards</h3>
+<select id="fcCat" onchange="loadCards()"></select>
+<p id="fcCount"></p>
+<div class="card flash">
+<div class="big" id="fcWord"></div>
+<div class="tr" id="fcTr"></div>
+<div class="pr" id="fcPr"></div>
+</div>
+<button onclick="flipCard()">Show Translation</button>
+<button onclick="speakWord()">🔊 Listen</button>
+<button onclick="knowCard()">✅ I know this</button>
+<button onclick="nextCard()">Next ➡️</button>
+<p id="fcMsg" style="color:green;"></p>
+</div>
+</div>
+
+<!-- QUIZ -->
+<div class="tab" id="quiz">
+<div class="card">
+<h3>📝 Quiz</h3>
+<select id="qCat">
+<option>Vocabulary</option>
+<option>Phrases</option>
+<option>Grammar</option>
+<option selected>Mixed</option>
+</select>
+<button onclick="startQuiz()">Start Quiz</button>
+<p id="qInfo"></p>
+<h3 id="qText">Press Start Quiz to begin</h3>
+<div id="qOpts"></div>
+<p id="qFeedback"></p>
+<button id="qNext" onclick="nextQuestion()" style="display:none;">Next</button>
+</div>
+</div>
+
+<!-- PROGRESS -->
+<div class="tab" id="prog">
+<div class="card">
+<h3>📊 My Progress</h3>
+<div id="progBars"></div>
+<p id="progQuiz"></p>
+<button onclick="resetProgress()" style="background:#dc3545;">Reset Progress</button>
+</div>
+</div>
+
+</div>
+
+<script>
+
+// word, English meaning, pronunciation, (grammar note)
+var DATA = {
+Spanish:{ code:"es-ES",
+Vocabulary:[["Hola","Hello","OH-lah"],["Gracias","Thank you","GRAH-see-ahs"],["Agua","Water","AH-gwah"],["Casa","House","KAH-sah"],["Libro","Book","LEE-bro"],["Amigo","Friend","ah-MEE-go"]],
+Phrases:[["Buenos días","Good morning","BWAY-nos DEE-ahs"],["¿Cómo estás?","How are you?","KOH-mo es-TAHS"],["Me llamo Ali","My name is Ali","meh YAH-mo ah-LEE"],["Mucho gusto","Nice to meet you","MOO-cho GOOS-toh"],["No entiendo","I do not understand","no en-TYEN-do"],["Hasta luego","See you later","AHS-tah LWEH-go"]],
+Grammar:[["Yo soy estudiante","I am a student","yo soy es-too-DYAN-teh","soy = I am"],["Ella tiene un gato","She has a cat","EH-yah TYEH-neh oon GAH-toh","tiene = has"],["Nosotros comemos pan","We eat bread","no-SOH-tros ko-MEH-mos pahn","-emos = we form"],["Él habla inglés","He speaks English","el AH-blah een-GLES","-a = he/she form"],["Tú eres amable","You are kind","too EH-res ah-MAH-bleh","eres = you are"]]
+},
+French:{ code:"fr-FR",
+Vocabulary:[["Bonjour","Hello","bon-ZHOOR"],["Merci","Thank you","mehr-SEE"],["Eau","Water","OH"],["Maison","House","may-ZON"],["Livre","Book","LEEV-ruh"],["Ami","Friend","ah-MEE"]],
+Phrases:[["Comment ça va ?","How are you?","koh-MON sah VAH"],["Je m'appelle Ali","My name is Ali","zhuh mah-PEL ah-LEE"],["Enchanté","Nice to meet you","on-shon-TAY"],["Où sont les toilettes ?","Where is the bathroom?","oo son lay twah-LET"],["Je ne comprends pas","I do not understand","zhuh nuh kom-PRON pah"],["À bientôt","See you soon","ah byen-TOH"]],
+Grammar:[["Je suis étudiant","I am a student","zhuh swee ay-too-DYON","suis = am"],["Elle a un chat","She has a cat","el ah uh SHAH","a = has"],["Nous mangeons du pain","We eat bread","noo mon-ZHON dew pan","nous = we"],["Il parle anglais","He speaks English","eel PARL on-GLAY","-e = il/elle form"],["Tu es gentil","You are kind","tew eh zhon-TEE","es = you are"]]
+},
+German:{ code:"de-DE",
+Vocabulary:[["Hallo","Hello","HAH-loh"],["Danke","Thank you","DAHN-kuh"],["Wasser","Water","VAH-sser"],["Haus","House","HOWS"],["Buch","Book","BOOKH"],["Freund","Friend","FROYNT"]],
+Phrases:[["Guten Morgen","Good morning","GOO-ten MOR-gen"],["Wie geht's?","How are you?","vee GAYTS"],["Ich heiße Ali","My name is Ali","ikh HY-suh ah-LEE"],["Freut mich","Nice to meet you","froyt mikh"],["Ich verstehe nicht","I do not understand","ikh fer-SHTAY-uh nikht"],["Wo ist die Toilette?","Where is the bathroom?","voh ist dee toy-LET-uh"]],
+Grammar:[["Ich bin Student","I am a student","ikh bin shtoo-DENT","bin = am"],["Sie hat eine Katze","She has a cat","zee haht EYE-nuh KAT-suh","hat = has"],["Wir essen Brot","We eat bread","veer ESS-en broht","wir = we"],["Er spricht Englisch","He speaks English","air shprikht ENG-lish","-t = er form"],["Du bist nett","You are kind","doo bist net","bist = you are"]]
+}
+};
+
+var CATS = ["Vocabulary","Phrases","Grammar"];
+var cards = [];
+var idx = 0;
+var qs = [];
+var qi = 0;
+var score = 0;
+
+var store = { learned:{}, quiz:{} };
+try {
+  var saved = JSON.parse(localStorage.getItem("langApp"));
+  if (saved) { store = saved; }
+} catch(e) {}
+
+function saveStore(){
+  localStorage.setItem("langApp", JSON.stringify(store));
+}
+
+function getLang(){
+  return document.getElementById("language").value;
+}
+
+function items(cat){
+  return DATA[getLang()][cat];
+}
+
+function shuffle(arr){
+  return arr.slice().sort(function(){ return Math.random() - 0.5; });
+}
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  var names = ["daily","flash","quiz","prog"];
+  for (var i = 0; i < names.length; i++){
+    document.getElementById(names[i]).style.display = "none";
+    document.getElementById("b_" + names[i]).className = "";
+  }
+  document.getElementById(name).style.display = "block";
+  document.getElementById("b_" + name).className = "active";
+  if (name === "prog"){ renderProgress(); }
+}
+
+/* ---------- daily lesson ---------- */
+function renderDaily(){
+  var pool = [];
+  for (var c = 0; c < CATS.length; c++){
+    var list = items(CATS[c]);
+    for (var i = 0; i < list.length; i++){
+      pool.push({ cat: CATS[c], d: list[i] });
+    }
+  }
+  var day = Math.floor(Date.now() / 86400000);
+  var start = (day * 5) % pool.length;
+  var html = "";
+  for (var k = 0; k < 5; k++){
+    var p = pool[(start + k) % pool.length];
+    html += "<p><b style='font-size:18px;'>" + p.d[0] + "</b><br>" +
+            p.d[1] + " &nbsp;|&nbsp; <i>" + p.d[2] + "</i><br>" +
+            "<small style='color:#007bff;'>" + p.cat + (p.d[3] ? " - " + p.d[3] : "") + "</small></p><hr>";
+  }
+  document.getElementById("dailyDate").innerText = new Date().toDateString() + " - 5 items for " + getLang();
+  document.getElementById("dailyList").innerHTML = html;
+}
+
+/* ---------- flashcards ---------- */
+function loadCards(){
+  cards = shuffle(items(document.getElementById("fcCat").value));
+  idx = 0;
+  showCard();
+}
+
+function showCard(){
+  document.getElementById("fcWord").innerText = cards[idx][0];
+  document.getElementById("fcTr").innerText = "";
+  document.getElementById("fcPr").innerText = "";
+  document.getElementById("fcMsg").innerText = "";
+  document.getElementById("fcCount").innerText = "Card " + (idx + 1) + " of " + cards.length;
+}
+
+function flipCard(){
+  var c = cards[idx];
+  document.getElementById("fcTr").innerText = c[1];
+  document.getElementById("fcPr").innerText = "Pronunciation: " + c[2] + (c[3] ? "  (" + c[3] + ")" : "");
+}
+
+function nextCard(){
+  idx = (idx + 1) % cards.length;
+  showCard();
+}
+
+function knowCard(){
+  var key = getLang() + "|" + document.getElementById("fcCat").value;
+  if (!store.learned[key]){ store.learned[key] = []; }
+  var w = cards[idx][0];
+  if (store.learned[key].indexOf(w) === -1){ store.learned[key].push(w); }
+  saveStore();
+  nextCard();
+  document.getElementById("fcMsg").innerText = "Saved as learned ✅";
+}
+
+function speakWord(){
+  if (!("speechSynthesis" in window)){
+    alert("Speech is not supported in this browser");
+    return;
+  }
+  var u = new SpeechSynthesisUtterance(cards[idx][0]);
+  u.lang = DATA[getLang()].code;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+/* ---------- quiz ---------- */
+function resetQuizView(){
+  qs = [];
+  document.getElementById("qText").innerText = "Press Start Quiz to begin";
+  document.getElementById("qOpts").innerHTML = "";
+  document.getElementById("qInfo").innerText = "";
+  document.getElementById("qFeedback").innerText = "";
+  document.getElementById("qNext").style.display = "none";
+}
+
+function startQuiz(){
+  var cat = document.getElementById("qCat").value;
+  var pool = [];
+  var cats = (cat === "Mixed") ? CATS : [cat];
+  for (var c = 0; c < cats.length; c++){
+    pool = pool.concat(items(cats[c]));
+  }
+  var allAns = [];
+  for (var a = 0; a < CATS.length; a++){
+    var l = items(CATS[a]);
+    for (var b = 0; b < l.length; b++){
+      if (allAns.indexOf(l[b][1]) === -1){ allAns.push(l[b][1]); }
+    }
+  }
+  var picked = shuffle(pool).slice(0, 5);
+  qs = [];
+  for (var i = 0; i < picked.length; i++){
+    var right = picked[i][1];
+    var others = shuffle(allAns.filter(function(x){ return x !== right; })).slice(0, 3);
+    others.push(right);
+    qs.push({ word: picked[i][0], right: right, opts: shuffle(others) });
+  }
+  qi = 0;
+  score = 0;
+  showQuestion();
+}
+
+function showQuestion(){
+  var q = qs[qi];
+  document.getElementById("qInfo").innerText = "Question " + (qi + 1) + " of " + qs.length + "  |  Score: " + score;
+  document.getElementById("qText").innerText = "What does \"" + q.word + "\" mean?";
+  document.getElementById("qFeedback").innerText = "";
+  document.getElementById("qNext").style.display = "none";
+  document.getElementById("qNext").innerText = (qi === qs.length - 1) ? "Finish" : "Next";
+  var box = document.getElementById("qOpts");
+  box.innerHTML = "";
+  for (var i = 0; i < q.opts.length; i++){
+    var btn = document.createElement("button");
+    btn.className = "opt";
+    btn.innerText = q.opts[i];
+    btn.onclick = (function(opt, b){
+      return function(){ checkAnswer(opt); };
+    })(q.opts[i], btn);
+    box.appendChild(btn);
+  }
+}
+
+function checkAnswer(chosen){
+  var q = qs[qi];
+  var btns = document.getElementById("qOpts").children;
+  for (var i = 0; i < btns.length; i++){
+    btns[i].disabled = true;
+    if (btns[i].innerText === q.right){ btns[i].style.background = "#bbf7d0"; }
+    else if (btns[i].innerText === chosen){ btns[i].style.background = "#fecaca"; }
+  }
+  var fb = document.getElementById("qFeedback");
+  if (chosen === q.right){
+    score++;
+    fb.innerText = "Correct! ✅";
+    fb.style.color = "green";
+  } else {
+    fb.innerText = "Wrong ❌ Answer: " + q.right;
+    fb.style.color = "red";
+  }
+  document.getElementById("qNext").style.display = "block";
+}
+
+function nextQuestion(){
+  if (qi < qs.length - 1){
+    qi++;
+    showQuestion();
+    return;
+  }
+  var lang = getLang();
+  if (!store.quiz[lang]){ store.quiz[lang] = { attempts:0, best:0, last:0, total:5 }; }
+  var s = store.quiz[lang];
+  s.attempts++;
+  s.last = score;
+  s.best = Math.max(s.best, score);
+  s.total = qs.length;
+  saveStore();
+  alert("Quiz finished! Your score: " + score + " / " + qs.length);
+  resetQuizView();
+}
+
+/* ---------- progress ---------- */
+function renderProgress(){
+  var html = "";
+  for (var i = 0; i < CATS.length; i++){
+    var total = items(CATS[i]).length;
+    var key = getLang() + "|" + CATS[i];
+    var done = store.learned[key] ? store.learned[key].length : 0;
+    var pct = Math.round((done / total) * 100);
+    html += "<p><b>" + CATS[i] + "</b>: " + done + "/" + total + " learned</p>" +
+            "<div class='progress'><div class='progress-bar' style='width:" + pct + "%'>" + pct + "%</div></div>";
+  }
+  document.getElementById("progBars").innerHTML = html;
+  var q = store.quiz[getLang()];
+  document.getElementById("progQuiz").innerHTML = q ?
+    "<br>Quizzes taken: <b>" + q.attempts + "</b> | Last: <b>" + q.last + "/" + q.total + "</b> | Best: <b>" + q.best + "/" + q.total + "</b>" :
+    "<br>No quizzes taken yet.";
+}
+
+function resetProgress(){
+  if (confirm("Delete all saved progress?")){
+    store = { learned:{}, quiz:{} };
+    saveStore();
+    renderProgress();
+  }
+}
+
+/* ---------- start ---------- */
+function refreshAll(){
+  renderDaily();
+  loadCards();
+  resetQuizView();
+  renderProgress();
+}
+
+(function init(){
+  var langSel = document.getElementById("language");
+  var names = Object.keys(DATA);
+  for (var i = 0; i < names.length; i++){
+    langSel.innerHTML += "<option>" + names[i] + "</option>";
+  }
+  var fcSel = document.getElementById("fcCat");
+  for (var j = 0; j < CATS.length; j++){
+    fcSel.innerHTML += "<option>" + CATS[j] + "</option>";
+  }
+  showTab("daily");
+  refreshAll();
+})();
+
+</script>
+</body>
+</html>
